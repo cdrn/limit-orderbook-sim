@@ -1,34 +1,44 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## wot is it
 
-## Getting Started
+This is a typescript implementation of a fast limit orderbook exchange primarily in memory. It's inspired by this (venerable post)[https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/] which is a great resource for understanding the data structures required to complete standard limit order operations in O(1) time.
 
-First, run the development server:
+## why typescript
 
-```bash
-npm run dev
-# or
-yarn dev
-```
+It's hard to find a way to disregard speed and safety in one language. This is a good example of how to do it.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## why is it fast
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+As the post explains, there are a couple of operations required for a limit orderbook:
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+Add – O(log M) for the first order at a limit, O(1) for all others
+Cancel – O(1)
+Execute – O(1)
+GetVolumeAtLimit – O(1)
+GetBestBid/Offer – O(1)
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+Let's go through them one by one:
 
-## Learn More
+#### Add: Supply an order and the limit price
 
-To learn more about Next.js, take a look at the following resources:
+Traverse the buy tree/sell tree (binary search) to find the correct place to insert the order. The closer the order is to the buy/ask, the more
+shallow the traversal will be. Alternatively, traverse from the lowestSell or highest buy. Worst case: O(n). Insert a new tail order encapsulated by said limit. O(1).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### Cancel: supply an order ID and limit price
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Lookup order ID in keyed map. Pop order from parentLimit.
 
-## Deploy on Vercel
+#### Execute
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Whenever the limits lowestBuy and highestSell match, execute. Pop orders off the linked list. O(1).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+#### GetVolumeAtLimit
+
+Find the limit by traversing the buy tree/sell tree. O(n).
+
+#### GetBestBid/Offer
+
+O(1), stored at the top level.
+
+## Thoughts
+
+Pending benchmarks
