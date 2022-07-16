@@ -1,5 +1,5 @@
 export interface Order extends OrderSubmissionInterface {
-  idNumber: bigint; // Monotonically increasing order ID
+  idNumber?: bigint; // Monotonically increasing order ID
   entryTime: bigint | null;
   eventTime: bigint;
   nextOrder: Order | null;
@@ -66,22 +66,66 @@ export const findClosestLimitFromPrice = (
   }
 };
 
-export const addOrderToOrderbook = (orderbook: Book, order: Order): Book => {
-  const limit = findClosestLimitFromPrice(order.limit, orderbook.buyTree);
+/**
+ * Create a limit order where one previously did not exist.
+ * @param orderbook
+ * @param order
+ */
+export const createGenesisLimit = (order: Order) => {
+  const limit = {
+    limitPrice: order.limit,
+    size: order.shares,
+    totalVolume: order.shares,
+    parent: null,
+    leftChild: null,
+    rightChild: null,
+    headOrder: order,
+    tailOrder: order,
+  };
+  return limit;
+};
 
-  // If there's no limit
-  if (limit === null) {
-    throw new Error("Limit not found");
-  }
+/**
+ * Add an order to an existing "limit" structure.
+ * @param orderbook
+ * @param order
+ */
+export const addOrderToLimit = (BuyOrSellTree: Limit, order: Order) => {
+  return;
+};
 
-  if (limit.headOrder.buyOrSell === order.buyOrSell) {
-    limit.headOrder = order;
-  } else {
-    limit.tailOrder = order;
+export const addOrderToOrderbook = (
+  orderbook: Book,
+  order: OrderSubmissionInterface
+): Book => {
+  // create a full order object by filling in our missing values
+  const fullOrder: Order = {
+    buyOrSell: order.buyOrSell,
+    shares: order.shares,
+    limit: order.limit,
+    entryTime: null,
+    eventTime: BigInt(Date.now()),
+    nextOrder: null,
+    prevOrder: null,
+    parentLimit: null,
+  };
+  // If theres no limit at the order root, we have to create one
+  // Check separately for buy and sell limits
+  if (order.buyOrSell) {
+    if (orderbook.buyTree === null) {
+      orderbook.buyTree = createGenesisLimit(fullOrder);
+      console.log("THE GENESIS BUY ORDER IS", orderbook.buyTree);
+    } else {
+      addOrderToLimit(orderbook.buyTree, fullOrder);
+    }
+  } else if (!order.buyOrSell) {
+    if (orderbook.sellTree === null) {
+      orderbook.sellTree = createGenesisLimit(fullOrder);
+      console.log("THE GENESIS SELL ORDER IS", orderbook.sellTree);
+    } else {
+      addOrderToLimit(orderbook.sellTree, fullOrder);
+    }
   }
-  limit.size = limit.size + order.shares;
-  limit.totalVolume = limit.totalVolume + order.shares;
-  return orderbook;
 };
 
 // Let's try to instantiate this as a singleton. This will be the orderbook for a given asset pair.
