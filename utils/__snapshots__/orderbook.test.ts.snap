@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`An order can be added to the orderbook correctly 1`] = `
+Object {
+  "buyOrSell": true,
+  "entryTime": null,
+  "eventTime": 1557831718135n,
+  "idNumber": "1",
+  "limit": 1n,
+  "nextOrder": null,
+  "parentLimit": null,
+  "prevOrder": null,
+  "shares": 1n,
+}
+`;

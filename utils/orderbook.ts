@@ -1,5 +1,5 @@
 export interface Order extends OrderSubmissionInterface {
-  idNumber?: bigint; // Monotonically increasing order ID
+  idNumber: string; // Monotonically increasing order ID
   entryTime: bigint | null;
   eventTime: bigint;
   nextOrder: Order | null;
@@ -37,6 +37,8 @@ export interface Book {
   sellTree: Limit | null;
   lowestSell: Limit | null;
   highestBuy: Limit | null;
+  orderMap: Record<string, Order>;
+  limitMap: Record<string, Limit>;
 }
 
 //////////////////////
@@ -94,41 +96,42 @@ export const addOrderToLimit = (BuyOrSellTree: Limit, order: Order) => {
   return;
 };
 
-export const addOrderToOrderbook = (
-  orderbook: Book,
-  order: OrderSubmissionInterface
-): Book => {
-  // create a full order object by filling in our missing values
-  const fullOrder: Order = {
-    buyOrSell: order.buyOrSell,
-    shares: order.shares,
-    limit: order.limit,
-    entryTime: null,
-    eventTime: BigInt(Date.now()),
-    nextOrder: null,
-    prevOrder: null,
-    parentLimit: null,
-  };
+export const addOrderToOrderbook = (orderbook: Book, order: Order): Book => {
   // If theres no limit at the order root, we have to create one
   // Check separately for buy and sell limits
   if (order.buyOrSell) {
     if (orderbook.buyTree === null) {
-      orderbook.buyTree = createGenesisLimit(fullOrder);
+      const genesisLimit = createGenesisLimit(order);
+      orderbook.buyTree = genesisLimit;
+      orderbook.limitMap[String(genesisLimit.limitPrice)] = genesisLimit;
       console.log("THE GENESIS BUY ORDER IS", orderbook.buyTree);
     } else {
-      addOrderToLimit(orderbook.buyTree, fullOrder);
+      addOrderToLimit(orderbook.buyTree, order);
     }
   } else if (!order.buyOrSell) {
     if (orderbook.sellTree === null) {
-      orderbook.sellTree = createGenesisLimit(fullOrder);
+      const genesisLimit = createGenesisLimit(order);
+      orderbook.sellTree = genesisLimit;
+      orderbook.limitMap[String(genesisLimit.limitPrice)] = genesisLimit;
+      orderbook.sellTree = createGenesisLimit(order);
       console.log("THE GENESIS SELL ORDER IS", orderbook.sellTree);
     } else {
-      addOrderToLimit(orderbook.sellTree, fullOrder);
+      addOrderToLimit(orderbook.sellTree, order);
     }
   }
+  // Always add the order to the orderMap
+  orderbook.orderMap[order.idNumber] = order;
 };
 
-// Let's try to instantiate this as a singleton. This will be the orderbook for a given asset pair.
+export const getLastOrderId = (orderbook: Book) => {
+  return (
+    Object.keys(orderbook.orderMap).sort((a, b) =>
+      Number(BigInt(b) - BigInt(a))
+    )[0] || 0
+  ); // TODO: this is inefficient lol
+};
+
+// This will be the orderbook for a given asset pair.
 export const FastLimitOrderbook = () => {
   // Represents the entire orderbook for a given asset pair
   const orderbook: Book = {
@@ -136,11 +139,14 @@ export const FastLimitOrderbook = () => {
     sellTree: null,
     lowestSell: null,
     highestBuy: null,
+    orderMap: {},
+    limitMap: {},
   };
 
   const addOrder = (order: OrderSubmissionInterface) => {
+    const orderId = String(Number(getLastOrderId(orderbook)) + 1); // Will lose precision at 2^53 orders
     const newOrder: Order = {
-      idNumber: BigInt(1), // TODO: Implement monotonically increasing order IDs
+      idNumber: orderId, // TODO: Implement monotonically increasing order IDs
       buyOrSell: order.buyOrSell,
       shares: order.shares,
       limit: order.limit,
@@ -158,14 +164,24 @@ export const FastLimitOrderbook = () => {
 
   const cancelOrder = (order: Order) => {};
 
-  const getOrdersAtLimitPrice = (limitPrice: bigint) => {
-    const limit = findClosestLimitFromPrice(limitPrice, orderbook.buyTree);
+  const getOrdersAtLimitPrice = (limitPrice: bigint, buy: boolean) => {
+    const limit = findClosestLimitFromPrice(
+      limitPrice,
+      buy ? orderbook.buyTree : orderbook.sellTree
+    );
     if (limit === null) {
-      throw new Error("Limit not found");
+      return;
     }
-
     return limit.headOrder;
   };
+
+  function getAllOrders() {
+    return orderbook.orderMap;
+  }
+
+  function getAllLimits() {
+    return orderbook.limitMap;
+  }
 
   // Return the functions required to interact with the orderbook.
   return {
@@ -173,5 +189,7 @@ export const FastLimitOrderbook = () => {
     cancelOrder,
     executeOrder,
     getOrdersAtLimitPrice,
+    getAllOrders,
+    getAllLimits,
   };
 };
