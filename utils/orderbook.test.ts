@@ -10,9 +10,9 @@ const generateRandomOrders = (numOrders: number) => {
   const orders = [];
   for (let i = 0; i < numOrders; i++) {
     orders.push({
-      buyOrSell: Math.random() > 0.5 ? true : false,
-      limit: BigInt(Math.floor(Math.random() * 100)),
-      shares: BigInt(Math.floor(Math.random() * 100)),
+      buy: Math.random() > 0.5 ? true : false,
+      limit: BigInt(Math.floor(Math.random() * 50)),
+      shares: BigInt(Math.floor(Math.random() * 50)),
     });
   }
   return orders;
@@ -25,14 +25,9 @@ test("a Fastlimit orderbook object can be instantiated", () => {
 test("An order can be added to the orderbook correctly", () => {
   const orderbook = FastLimitOrderbook();
   const order = {
-    buyOrSell: true,
+    buy: true,
     shares: BigInt(1),
     limit: BigInt(1),
-    entryTime: BigInt(1),
-    eventTime: BigInt(1),
-    nextOrder: null,
-    prevOrder: null,
-    parentLimit: null,
   };
   orderbook.addOrder(order);
   const limitOrder = orderbook.getOrdersAtLimitPrice(BigInt(1), true);
@@ -49,8 +44,13 @@ test("Add multiple orders at different limits to the orderbook", () => {
     orderbook.addOrder(order);
   }
   const limitBuyOrders = orderbook.getOrdersAtLimitPrice(BigInt(1), true);
-  console.log("LIMITS");
-  console.log(orderbook.getAllLimits());
-  console.log("ORDERS LENGTH");
-  console.log(orderbook.getAllOrders());
+  console.log("limit buy orders at 1", limitBuyOrders);
+  console.log("num orders", Object.keys(orderbook.getAllOrders())?.length);
+  console.log("num buy limits", Object.keys(orderbook.getAllBuyLimits()));
+  console.log(
+    "num sell limits",
+    Object.keys(orderbook.getAllSellLimits())?.length
+  );
+
+  console.log("test execute order function...", orderbook.executeOrders());
 });

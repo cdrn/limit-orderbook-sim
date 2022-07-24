@@ -2,7 +2,7 @@
 
 exports[`An order can be added to the orderbook correctly 1`] = `
 Object {
-  "buyOrSell": true,
+  "buy": true,
   "entryTime": null,
   "eventTime": 1557831718135n,
   "idNumber": "1",
